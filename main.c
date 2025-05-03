@@ -64,36 +64,84 @@ static void memcpy_dumb_longs(void *to, const void *from)
 	}
 }
 
-static void memcpy_4_longs(void *to, const void *from)
+#define LONGS_16 \
+			*lto++ = *lfrom++; \
+			*lto++ = *lfrom++; \
+			*lto++ = *lfrom++; \
+			*lto++ = *lfrom++;
+
+#define LONGS_32 \
+			LONGS_16 \
+			LONGS_16
+
+#define LONGS_64 \
+			LONGS_32 \
+			LONGS_32
+
+#define LONGS_128 \
+			LONGS_64 \
+			LONGS_64
+
+#define LONGS_256 \
+			LONGS_128 \
+			LONGS_128
+
+static void memcpy_longs_16(void *to, const void *from)
 {
 	for (int j = 0; j < OUTTER_LOOPS; j++) {
 		for (int i = 0; i < COPY_SZ; i += (4 * 4)) {
 			const uint32_t *lfrom = (from + i);
 			uint32_t *lto = (to + i);
 
-			*lto++ = *lfrom++;
-			*lto++ = *lfrom++;
-			*lto++ = *lfrom++;
-			*lto++ = *lfrom++;
+			LONGS_16
 		}
 	}
 }
 
-static void memcpy_8_longs(void *to, const void *from)
+static void memcpy_longs_32(void *to, const void *from)
 {
 	for (int j = 0; j < OUTTER_LOOPS; j++) {
 		for (int i = 0; i < COPY_SZ; i += (4 * 8)) {
 			const uint32_t *lfrom = (from + i);
 			uint32_t *lto = (to + i);
 
-			*lto++ = *lfrom++;
-			*lto++ = *lfrom++;
-			*lto++ = *lfrom++;
-			*lto++ = *lfrom++;
-			*lto++ = *lfrom++;
-			*lto++ = *lfrom++;
-			*lto++ = *lfrom++;
-			*lto++ = *lfrom++;
+			LONGS_32
+		}
+	}
+}
+
+static void memcpy_longs_64(void *to, const void *from)
+{
+	for (int j = 0; j < OUTTER_LOOPS; j++) {
+		for (int i = 0; i < COPY_SZ; i += (4 * 16)) {
+			const uint32_t *lfrom = (from + i);
+			uint32_t *lto = (to + i);
+
+			LONGS_64
+		}
+	}
+}
+
+static void memcpy_longs_128(void *to, const void *from)
+{
+	for (int j = 0; j < OUTTER_LOOPS; j++) {
+		for (int i = 0; i < COPY_SZ; i += (4 * 32)) {
+			const uint32_t *lfrom = (from + i);
+			uint32_t *lto = (to + i);
+
+			LONGS_128
+		}
+	}
+}
+
+static void memcpy_longs_256(void *to, const void *from)
+{
+	for (int j = 0; j < OUTTER_LOOPS; j++) {
+		for (int i = 0; i < COPY_SZ; i += (4 * 64)) {
+			const uint32_t *lfrom = (from + i);
+			uint32_t *lto = (to + i);
+
+			LONGS_256
 		}
 	}
 }
@@ -104,8 +152,32 @@ static inline void movem_copy32(void *dest, const void *src)
 {
 	asm volatile ("movem.l (%[from]), %%d0-%%d7\n"
 				  "movem.l %%d0-%%d7, (%[to])\n"
-				  :
+				  : 
 				  : [from] "a" (src), [to] "a" (dest)
+				  : "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7");
+}
+
+static inline void movem_copy64(void *dest, const void *src)
+{
+	asm volatile (".rept 2\n"
+				  "movem.l (%[from])+, %%d0-%%d7\n"
+				  "movem.l %%d0-%%d7, (%[to])\n"
+				  "add.l #32, %[to]\n"
+				  ".endr\n"
+				  : [from] "+a" (src), [to] "+a" (dest)
+				  : 
+				  : "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7");
+}
+
+static inline void movem_copy128(void *dest, const void *src)
+{
+	asm volatile (".rept 4\n"
+				  "movem.l (%[from])+, %%d0-%%d7\n"
+				  "movem.l %%d0-%%d7, (%[to])\n"
+				  "add.l #32, %[to]\n"
+				  ".endr\n"
+				  : [from] "+a" (src), [to] "+a" (dest)
+				  : 
 				  : "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7");
 }
 
@@ -121,6 +193,31 @@ static void memcpy_movem_32(void *to, const void *from)
 	}
 }
 
+static void memcpy_movem_64(void *to, const void *from)
+{
+	for (int j = 0; j < OUTTER_LOOPS; j++) {
+		for (int i = 0; i < COPY_SZ; i += 64) {
+			const char *cfrom = (from + i);
+			char *cto = (to + i);
+
+			movem_copy64(cto, cfrom);
+		}
+	}
+}
+
+static void memcpy_movem_128(void *to, const void *from)
+{
+	for (int j = 0; j < OUTTER_LOOPS; j++) {
+		for (int i = 0; i < COPY_SZ; i += 128) {
+			const char *cfrom = (from + i);
+			char *cto = (to + i);
+
+			movem_copy128(cto, cfrom);
+		}
+	}
+}
+
+#ifdef __mc68040__
 /* move16 */
 static inline void move16_copy32(void *dest, const void *src)
 {
@@ -131,23 +228,41 @@ static inline void move16_copy32(void *dest, const void *src)
 
 static inline void move16_copy64(void *dest, const void *src)
 {
-	asm volatile ("move16 (%[from])+, (%[to])+\n"
+	asm volatile (".rept 4\n"
 				  "move16 (%[from])+, (%[to])+\n"
-				  "move16 (%[from])+, (%[to])+\n"
-				  "move16 (%[from])+, (%[to])+\n"
+				  ".endr\n"
 				  : [from] "+a" (src), [to] "+a" (dest));
 }
 
 static inline void move16_copy128(void *dest, const void *src)
 {
-	asm volatile ("move16 (%[from])+, (%[to])+\n"
+	asm volatile (".rept 8\n"
 				  "move16 (%[from])+, (%[to])+\n"
+				  ".endr\n"
+				  : [from] "+a" (src), [to] "+a" (dest));
+}
+
+static inline void move16_copy256(void *dest, const void *src)
+{
+	asm volatile (".rept 16\n"
 				  "move16 (%[from])+, (%[to])+\n"
+				  ".endr\n"
+				  : [from] "+a" (src), [to] "+a" (dest));
+}
+
+static inline void move16_copy512(void *dest, const void *src)
+{
+	asm volatile (".rept 32\n"
 				  "move16 (%[from])+, (%[to])+\n"
+				  ".endr\n"
+				  : [from] "+a" (src), [to] "+a" (dest));
+}
+
+static inline void move16_copy1024(void *dest, const void *src)
+{
+	asm volatile (".rept 64\n"
 				  "move16 (%[from])+, (%[to])+\n"
-				  "move16 (%[from])+, (%[to])+\n"
-				  "move16 (%[from])+, (%[to])+\n"
-				  "move16 (%[from])+, (%[to])+\n"
+				  ".endr\n"
 				  : [from] "+a" (src), [to] "+a" (dest));
 }
 
@@ -187,22 +302,69 @@ static void memcpy_move16_128(void *to, const void *from)
 	}
 }
 
+static void memcpy_move16_256(void *to, const void *from)
+{
+	for (int j = 0; j < OUTTER_LOOPS; j++) {
+		for (int i = 0; i < COPY_SZ; i += 256) {
+			const char *cfrom = (from + i);
+			char *cto = (to + i);
+
+			move16_copy256(cto, cfrom);
+		}
+	}
+}
+
+static void memcpy_move16_512(void *to, const void *from)
+{
+	for (int j = 0; j < OUTTER_LOOPS; j++) {
+		for (int i = 0; i < COPY_SZ; i += 512) {
+			const char *cfrom = (from + i);
+			char *cto = (to + i);
+
+			move16_copy512(cto, cfrom);
+		}
+	}
+}
+
+static void memcpy_move16_1024(void *to, const void *from)
+{
+	for (int j = 0; j < OUTTER_LOOPS; j++) {
+		for (int i = 0; i < COPY_SZ; i += 1024) {
+			const char *cfrom = (from + i);
+			char *cto = (to + i);
+
+			move16_copy1024(cto, cfrom);
+		}
+	}
+}
+#endif
+
 struct memcpy_impl {
 	const char* name;
 	void (*func)(void *to, const void *from);
 };
 
 static const struct memcpy_impl impls[] = {
-	{ .name = "memcpy", .func = memcpy_memcpy },
-	{ .name = "dumb_bytes", .func = memcpy_dumb_bytes },
-	{ .name = "dumb_words", .func = memcpy_dumb_words },
-	{ .name = "dumb_longs", .func = memcpy_dumb_longs },
-	{ .name = "4_longs", .func = memcpy_4_longs },
-	{ .name = "8_longs", .func = memcpy_8_longs },
-	{ .name = "movem_32", .func = memcpy_movem_32 },
-	{ .name = "move16_32", .func = memcpy_move16_32 },
-	{ .name = "move16_64", .func = memcpy_move16_64 },
-	{ .name = "move16_128", .func = memcpy_move16_128 },
+	{ .name = "memcpy     ", .func = memcpy_memcpy },
+	{ .name = "dumb_bytes ", .func = memcpy_dumb_bytes },
+	{ .name = "dumb_words ", .func = memcpy_dumb_words },
+	{ .name = "dumb_longs ", .func = memcpy_dumb_longs },
+	{ .name = "longs_16   ", .func = memcpy_longs_16 },
+	{ .name = "longs_32   ", .func = memcpy_longs_32 },
+	{ .name = "longs_64   ", .func = memcpy_longs_64 },
+	{ .name = "longs_128  ", .func = memcpy_longs_128 },
+	{ .name = "longs_256  ", .func = memcpy_longs_256 },
+	{ .name = "movem_32   ", .func = memcpy_movem_32 },
+	{ .name = "movem_64   ", .func = memcpy_movem_64 },
+	{ .name = "movem_128  ", .func = memcpy_movem_128 },
+#ifdef __mc68040__
+	{ .name = "move16_32  ", .func = memcpy_move16_32 },
+	{ .name = "move16_64  ", .func = memcpy_move16_64 },
+	{ .name = "move16_128 ", .func = memcpy_move16_128 },
+	{ .name = "move16_256 ", .func = memcpy_move16_256 },
+	{ .name = "move16_512 ", .func = memcpy_move16_512 },
+	{ .name = "move16_1024", .func = memcpy_move16_1024 },
+#endif
 };
 
 int main(int argc, char **argv, char **envp)
@@ -226,10 +388,10 @@ int main(int argc, char **argv, char **envp)
 	for (int i = 0; i < ARRAY_SZ(impls); i++) {
 		const struct memcpy_impl *impl = &impls[i];
 
-		printf("Filling with garbage...");
+		//printf("Filling with garbage...");
 		getrandom(buffer, BUFF_SZ + ALIGN_PAD, 0);
 		uint32_t original_from_hash = XXH32(from, COPY_SZ, 0);
-		printf("done\n");
+		//printf("done\n");
 
 		struct timeval start_tv = { 0 };
 		sys_gettimeofday(&start_tv, NULL);
@@ -253,7 +415,7 @@ int main(int argc, char **argv, char **envp)
 		}
 
 		//float speed = TEST_SZ / duration;
-		printf("%s\t\t%ld uS (xx MiB/s)\n", impl->name, duration);
+		printf("%s\t%ld uS (xx MiB/s)\n", impl->name, duration);
 	}
 
 	return 0;
