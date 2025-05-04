@@ -12,23 +12,27 @@
 #define ARRAY_SZ(a) (sizeof(a) / sizeof(a[0]))
 #define ALIGN_PAD 16
 
+#define TEST_SKIPPED 1
+
 static long get_us(const struct timeval *tv)
 {
 	return (tv->tv_sec * (1000000l)) + tv->tv_usec;
 }
 
 /* libc */
-static void memcpy_memcpy(void *to, const void *from)
+static int memcpy_memcpy(void *to, const void *from)
 {
 	for (int j = 0; j < OUTTER_LOOPS; j++) {
 		memcpy(to, from, COPY_SZ);
 	}
+
+	return 0;
 }
 
 
 /* Dumb */
 
-static void memcpy_dumb_bytes(void *to, const void *from)
+static int memcpy_dumb_bytes(void *to, const void *from)
 {
 	for (int j = 0; j < OUTTER_LOOPS; j++) {
 		for (int i = 0; i < COPY_SZ; i++) {
@@ -38,9 +42,11 @@ static void memcpy_dumb_bytes(void *to, const void *from)
 			*cto = *cfrom;
 		}
 	}
+
+	return 0;
 }
 
-static void memcpy_dumb_words(void *to, const void *from)
+static int memcpy_dumb_words(void *to, const void *from)
 {
 	for (int j = 0; j < OUTTER_LOOPS; j++) {
 		for (int i = 0; i < COPY_SZ; i += 2) {
@@ -50,9 +56,11 @@ static void memcpy_dumb_words(void *to, const void *from)
 			*wto = *wfrom;
 		}
 	}
+
+	return 0;
 }
 
-static void memcpy_dumb_longs(void *to, const void *from)
+static int memcpy_dumb_longs(void *to, const void *from)
 {
 	for (int j = 0; j < OUTTER_LOOPS; j++) {
 		for (int i = 0; i < COPY_SZ; i += 4) {
@@ -62,6 +70,8 @@ static void memcpy_dumb_longs(void *to, const void *from)
 			*lto = *lfrom;
 		}
 	}
+
+	return 0;
 }
 
 #define LONGS_16 \
@@ -86,7 +96,7 @@ static void memcpy_dumb_longs(void *to, const void *from)
 			LONGS_128 \
 			LONGS_128
 
-static void memcpy_longs_16(void *to, const void *from)
+static int memcpy_longs_16(void *to, const void *from)
 {
 	for (int j = 0; j < OUTTER_LOOPS; j++) {
 		for (int i = 0; i < COPY_SZ; i += (4 * 4)) {
@@ -96,9 +106,11 @@ static void memcpy_longs_16(void *to, const void *from)
 			LONGS_16
 		}
 	}
+
+	return 0;
 }
 
-static void memcpy_longs_32(void *to, const void *from)
+static int memcpy_longs_32(void *to, const void *from)
 {
 	for (int j = 0; j < OUTTER_LOOPS; j++) {
 		for (int i = 0; i < COPY_SZ; i += (4 * 8)) {
@@ -108,9 +120,11 @@ static void memcpy_longs_32(void *to, const void *from)
 			LONGS_32
 		}
 	}
+
+	return 0;
 }
 
-static void memcpy_longs_64(void *to, const void *from)
+static int memcpy_longs_64(void *to, const void *from)
 {
 	for (int j = 0; j < OUTTER_LOOPS; j++) {
 		for (int i = 0; i < COPY_SZ; i += (4 * 16)) {
@@ -120,9 +134,11 @@ static void memcpy_longs_64(void *to, const void *from)
 			LONGS_64
 		}
 	}
+
+	return 0;
 }
 
-static void memcpy_longs_128(void *to, const void *from)
+static int memcpy_longs_128(void *to, const void *from)
 {
 	for (int j = 0; j < OUTTER_LOOPS; j++) {
 		for (int i = 0; i < COPY_SZ; i += (4 * 32)) {
@@ -132,9 +148,11 @@ static void memcpy_longs_128(void *to, const void *from)
 			LONGS_128
 		}
 	}
+
+	return 0;
 }
 
-static void memcpy_longs_256(void *to, const void *from)
+static int memcpy_longs_256(void *to, const void *from)
 {
 	for (int j = 0; j < OUTTER_LOOPS; j++) {
 		for (int i = 0; i < COPY_SZ; i += (4 * 64)) {
@@ -144,6 +162,8 @@ static void memcpy_longs_256(void *to, const void *from)
 			LONGS_256
 		}
 	}
+
+	return 0;
 }
 
 /* movem */
@@ -181,7 +201,7 @@ static inline void movem_copy128(void *dest, const void *src)
 				  : "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7");
 }
 
-static void memcpy_movem_32(void *to, const void *from)
+static int memcpy_movem_32(void *to, const void *from)
 {
 	for (int j = 0; j < OUTTER_LOOPS; j++) {
 		for (int i = 0; i < COPY_SZ; i += 32) {
@@ -191,9 +211,11 @@ static void memcpy_movem_32(void *to, const void *from)
 			movem_copy32(cto, cfrom);
 		}
 	}
+
+	return 0;
 }
 
-static void memcpy_movem_64(void *to, const void *from)
+static int memcpy_movem_64(void *to, const void *from)
 {
 	for (int j = 0; j < OUTTER_LOOPS; j++) {
 		for (int i = 0; i < COPY_SZ; i += 64) {
@@ -203,9 +225,11 @@ static void memcpy_movem_64(void *to, const void *from)
 			movem_copy64(cto, cfrom);
 		}
 	}
+
+	return 0;
 }
 
-static void memcpy_movem_128(void *to, const void *from)
+static int memcpy_movem_128(void *to, const void *from)
 {
 	for (int j = 0; j < OUTTER_LOOPS; j++) {
 		for (int i = 0; i < COPY_SZ; i += 128) {
@@ -215,6 +239,8 @@ static void memcpy_movem_128(void *to, const void *from)
 			movem_copy128(cto, cfrom);
 		}
 	}
+
+	return 0;
 }
 
 #ifdef __mc68040__
@@ -266,8 +292,11 @@ static inline void move16_copy1024(void *dest, const void *src)
 				  : [from] "+a" (src), [to] "+a" (dest));
 }
 
-static void memcpy_move16_32(void *to, const void *from)
+static int memcpy_move16_32(void *to, const void *from)
 {
+	if ((((uintptr_t) to) & 0xf) || (((uintptr_t) to) & 0xf))
+		return TEST_SKIPPED;
+
 	for (int j = 0; j < OUTTER_LOOPS; j++) {
 		for (int i = 0; i < COPY_SZ; i += 32) {
 			const char *cfrom = (from + i);
@@ -276,10 +305,15 @@ static void memcpy_move16_32(void *to, const void *from)
 			move16_copy32(cto, cfrom);
 		}
 	}
+
+	return 0;
 }
 
-static void memcpy_move16_64(void *to, const void *from)
+static int memcpy_move16_64(void *to, const void *from)
 {
+	if ((((uintptr_t) to) & 0xf) || (((uintptr_t) to) & 0xf))
+		return TEST_SKIPPED;
+
 	for (int j = 0; j < OUTTER_LOOPS; j++) {
 		for (int i = 0; i < COPY_SZ; i += 64) {
 			const char *cfrom = (from + i);
@@ -288,10 +322,15 @@ static void memcpy_move16_64(void *to, const void *from)
 			move16_copy64(cto, cfrom);
 		}
 	}
+
+	return 0;
 }
 
-static void memcpy_move16_128(void *to, const void *from)
+static int memcpy_move16_128(void *to, const void *from)
 {
+	if ((((uintptr_t) to) & 0xf) || (((uintptr_t) to) & 0xf))
+		return TEST_SKIPPED;
+
 	for (int j = 0; j < OUTTER_LOOPS; j++) {
 		for (int i = 0; i < COPY_SZ; i += 128) {
 			const char *cfrom = (from + i);
@@ -300,10 +339,15 @@ static void memcpy_move16_128(void *to, const void *from)
 			move16_copy128(cto, cfrom);
 		}
 	}
+
+	return 0;
 }
 
-static void memcpy_move16_256(void *to, const void *from)
+static int memcpy_move16_256(void *to, const void *from)
 {
+	if ((((uintptr_t) to) & 0xf) || (((uintptr_t) to) & 0xf))
+		return TEST_SKIPPED;
+
 	for (int j = 0; j < OUTTER_LOOPS; j++) {
 		for (int i = 0; i < COPY_SZ; i += 256) {
 			const char *cfrom = (from + i);
@@ -312,10 +356,15 @@ static void memcpy_move16_256(void *to, const void *from)
 			move16_copy256(cto, cfrom);
 		}
 	}
+
+	return 0;
 }
 
-static void memcpy_move16_512(void *to, const void *from)
+static int memcpy_move16_512(void *to, const void *from)
 {
+	if ((((uintptr_t) to) & 0xf) || (((uintptr_t) to) & 0xf))
+		return TEST_SKIPPED;
+
 	for (int j = 0; j < OUTTER_LOOPS; j++) {
 		for (int i = 0; i < COPY_SZ; i += 512) {
 			const char *cfrom = (from + i);
@@ -324,10 +373,15 @@ static void memcpy_move16_512(void *to, const void *from)
 			move16_copy512(cto, cfrom);
 		}
 	}
+
+	return 0;
 }
 
-static void memcpy_move16_1024(void *to, const void *from)
+static int memcpy_move16_1024(void *to, const void *from)
 {
+	if ((((uintptr_t) to) & 0xf) || (((uintptr_t) to) & 0xf))
+		return TEST_SKIPPED;
+
 	for (int j = 0; j < OUTTER_LOOPS; j++) {
 		for (int i = 0; i < COPY_SZ; i += 1024) {
 			const char *cfrom = (from + i);
@@ -336,12 +390,14 @@ static void memcpy_move16_1024(void *to, const void *from)
 			move16_copy1024(cto, cfrom);
 		}
 	}
+
+	return 0;
 }
 #endif
 
 struct memcpy_impl {
 	const char* name;
-	void (*func)(void *to, const void *from);
+	int (*func)(void *to, const void *from);
 };
 
 static const struct memcpy_impl impls[] = {
@@ -426,6 +482,7 @@ int main(int argc, char **argv, char **envp)
 			const struct mutation_impl *mut = &mutations[j];
 			const void *mut_from = from;
 			void *mut_to = to;
+			int result;
 
 			mut->func(&mut_to, &mut_from);
 
@@ -437,7 +494,11 @@ int main(int argc, char **argv, char **envp)
 			struct timeval start_tv = { 0 };
 			sys_gettimeofday(&start_tv, NULL);
 
-			impl->func(mut_to, mut_from);
+			result = impl->func(mut_to, mut_from);
+			if (result == TEST_SKIPPED)
+				continue;
+			else if (result)
+				exit(1);
 
 			struct timeval end_tv = { 0 };
 			sys_gettimeofday(&end_tv, NULL);
