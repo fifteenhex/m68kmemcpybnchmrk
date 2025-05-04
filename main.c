@@ -367,9 +367,44 @@ static const struct memcpy_impl impls[] = {
 #endif
 };
 
+static void mutation_aligned(void **to, const void **from)
+{
+	// nop
+}
+
+static void mutation_src_misaligned(void **to, const void **from)
+{
+	*to = *to + 1;
+}
+
+static void mutation_dst_misaligned(void **to, const void **from)
+{
+	*from = *from + 1;
+	/* to must also be advanced to avoid overlapping the new end of from */
+	*to = *to + 4;
+}
+
+static void mutation_srcdst_misaligned(void **to, const void **from)
+{
+	*to = *to + 1;
+	*from = *from + 1;
+}
+
+struct mutation_impl {
+	const char* name;
+	void (*func)(void **to, const void **from);
+};
+
+static const struct mutation_impl mutations[] = {
+	{ .name = "aligned           ", .func = mutation_aligned },
+	{ .name = "misaligned src    ", .func = mutation_src_misaligned },
+	{ .name = "misaligned dst    ", .func = mutation_dst_misaligned },
+	{ .name = "misaligned src+dst", .func = mutation_srcdst_misaligned },
+};
+
 int main(int argc, char **argv, char **envp)
 {
-	printf("m68k memcpy benchmark\n");
+	printf("m68k memcpy benchmark (%s)\n", VERSION);
 
 	void *buffer = malloc(BUFF_SZ + ALIGN_PAD);
 	if (!buffer) {
@@ -386,36 +421,44 @@ int main(int argc, char **argv, char **envp)
 		   OUTTER_LOOPS, COPY_SZ, (unsigned int) from, (unsigned int) to);
 
 	for (int i = 0; i < ARRAY_SZ(impls); i++) {
-		const struct memcpy_impl *impl = &impls[i];
+		for (int j = 0; j < ARRAY_SZ(mutations); j++) {
+			const struct memcpy_impl *impl = &impls[i];
+			const struct mutation_impl *mut = &mutations[j];
+			const void *mut_from = from;
+			void *mut_to = to;
 
-		//printf("Filling with garbage...");
-		getrandom(buffer, BUFF_SZ + ALIGN_PAD, 0);
-		uint32_t original_from_hash = XXH32(from, COPY_SZ, 0);
-		//printf("done\n");
+			mut->func(&mut_to, &mut_from);
 
-		struct timeval start_tv = { 0 };
-		sys_gettimeofday(&start_tv, NULL);
+			//printf("Filling with garbage...");
+			getrandom(buffer, BUFF_SZ + ALIGN_PAD, 0);
+			uint32_t original_from_hash = XXH32(mut_from, COPY_SZ, 0);
+			//printf("done\n");
 
-		impl->func(to, from);
+			struct timeval start_tv = { 0 };
+			sys_gettimeofday(&start_tv, NULL);
 
-		struct timeval end_tv = { 0 };
-		sys_gettimeofday(&end_tv, NULL);
+			impl->func(mut_to, mut_from);
 
-		/* Make sure the hardwork for calculating the time happens after the test has happened */
-		long start = get_us(&start_tv);
-		long end = get_us(&end_tv);
-		long duration = end - start;
+			struct timeval end_tv = { 0 };
+			sys_gettimeofday(&end_tv, NULL);
 
-		uint32_t from_hash = XXH32(from, COPY_SZ, 0);
-		uint32_t to_hash = XXH32(to, COPY_SZ, 0);
+			/* Make sure the hardwork for calculating the time happens after the test has happened */
+			long start = get_us(&start_tv);
+			long end = get_us(&end_tv);
+			long duration = end - start;
 
-		if ((original_from_hash != from_hash) || (to_hash != from_hash)) {
-			printf("xxhash32 original from: 0x%08x, from: 0x%08x, to 0x%08x\n",
-				original_from_hash, from_hash, to_hash);
+			uint32_t from_hash = XXH32(mut_from, COPY_SZ, 0);
+			uint32_t to_hash = XXH32(mut_to, COPY_SZ, 0);
+
+			if ((original_from_hash != from_hash) || (to_hash != from_hash)) {
+				printf("xxhash32 original from: 0x%08x, from: 0x%08x, to 0x%08x\n",
+					original_from_hash, from_hash, to_hash);
+			}
+
+			//float speed = TEST_SZ / duration;
+			printf("%s(%s)\t%ld uS (xx MiB/s)\n",
+				   impl->name, mut->name, duration);
 		}
-
-		//float speed = TEST_SZ / duration;
-		printf("%s\t%ld uS (xx MiB/s)\n", impl->name, duration);
 	}
 
 	return 0;
