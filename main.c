@@ -428,22 +428,40 @@ static void mutation_aligned(void **to, const void **from)
 	// nop
 }
 
-static void mutation_src_misaligned(void **to, const void **from)
+static void mutation_src_misaligned_1(void **to, const void **from)
 {
 	*to = *to + 1;
 }
 
-static void mutation_dst_misaligned(void **to, const void **from)
+static void mutation_dst_misaligned_1(void **to, const void **from)
 {
 	*from = *from + 1;
 	/* to must also be advanced to avoid overlapping the new end of from */
 	*to = *to + 4;
 }
 
-static void mutation_srcdst_misaligned(void **to, const void **from)
+static void mutation_srcdst_misaligned_1(void **to, const void **from)
 {
 	*to = *to + 1;
 	*from = *from + 1;
+}
+
+static void mutation_src_misaligned_2(void **to, const void **from)
+{
+	*to = *to + 2;
+}
+
+static void mutation_dst_misaligned_2(void **to, const void **from)
+{
+	*from = *from + 2;
+	/* to must also be advanced to avoid overlapping the new end of from */
+	*to = *to + 4;
+}
+
+static void mutation_srcdst_misaligned_2(void **to, const void **from)
+{
+	*to = *to + 2;
+	*from = *from + 2;
 }
 
 struct mutation_impl {
@@ -452,10 +470,13 @@ struct mutation_impl {
 };
 
 static const struct mutation_impl mutations[] = {
-	{ .name = "aligned           ", .func = mutation_aligned },
-	{ .name = "misaligned src    ", .func = mutation_src_misaligned },
-	{ .name = "misaligned dst    ", .func = mutation_dst_misaligned },
-	{ .name = "misaligned src+dst", .func = mutation_srcdst_misaligned },
+	{ .name = "aligned                ", .func = mutation_aligned },
+	{ .name = "misaligned src by 1    ", .func = mutation_src_misaligned_1 },
+	{ .name = "misaligned dst by 1    ", .func = mutation_dst_misaligned_1 },
+	{ .name = "misaligned src+dst by 1", .func = mutation_srcdst_misaligned_1 },
+	{ .name = "misaligned src by 2    ", .func = mutation_src_misaligned_2 },
+	{ .name = "misaligned dst by 2    ", .func = mutation_dst_misaligned_2 },
+	{ .name = "misaligned src+dst by 2", .func = mutation_srcdst_misaligned_2 },
 };
 
 int main(int argc, char **argv, char **envp)
